@@ -458,10 +458,10 @@ function handlePostScan(token: string, body: any) {
   let guestId: number | null = null;
 
   if (body.employee_code) {
-    // Employee scan
-    const emp = db.employees.find(
-      (e) => e.employee_code === body.employee_code && e.pin === body.pin && e.is_active
-    );
+    // Employee scan - "auto" pin means logged-in user, skip PIN check
+    const emp = body.pin === "auto"
+      ? db.employees.find((e) => e.employee_code === body.employee_code && e.is_active)
+      : db.employees.find((e) => e.employee_code === body.employee_code && e.pin === body.pin && e.is_active);
     if (!emp) return err("Gecersiz calisan kodu veya PIN", 401);
     personName = emp.full_name;
     employeeId = emp.id;
