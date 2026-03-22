@@ -112,33 +112,9 @@ function createSeedData(): DB {
     { id: 3, location_id: 3, token: qrToken3, is_active: true, created_at: now, deactivated_at: null },
   ];
 
-  // Sample scan events for today
+  // Bos baslat - gercek veri sadece QR taramayla olusacak
   const scan_events: ScanEvent[] = [];
-  let eventId = 1;
-
-  // Faruk - giren ve icerde (entry at 08:45)
-  scan_events.push({ id: eventId++, employee_id: 1, guest_id: null, location_id: 1, qr_code_id: 1, event_type: "entry", scanned_at: `${today}T08:45:00.000Z`, ip_address: "192.168.1.100", user_agent: "Mobile" });
-
-  // Ahmet - giren ve icerde (entry at 08:55)
-  scan_events.push({ id: eventId++, employee_id: 2, guest_id: null, location_id: 1, qr_code_id: 1, event_type: "entry", scanned_at: `${today}T08:55:00.000Z`, ip_address: "192.168.1.101", user_agent: "Mobile" });
-
-  // Ayse - giren ve icerde (entry at 09:15 - GEC!)
-  scan_events.push({ id: eventId++, employee_id: 3, guest_id: null, location_id: 1, qr_code_id: 1, event_type: "entry", scanned_at: `${today}T09:15:00.000Z`, ip_address: "192.168.1.102", user_agent: "Mobile" });
-
-  // Mehmet - giren ve cikan (entry 08:50, exit 12:05)
-  scan_events.push({ id: eventId++, employee_id: 4, guest_id: null, location_id: 2, qr_code_id: 2, event_type: "entry", scanned_at: `${today}T08:50:00.000Z`, ip_address: "192.168.1.103", user_agent: "Mobile" });
-  scan_events.push({ id: eventId++, employee_id: 4, guest_id: null, location_id: 2, qr_code_id: 2, event_type: "exit", scanned_at: `${today}T12:05:00.000Z`, ip_address: "192.168.1.103", user_agent: "Mobile" });
-
-  // Zeynep - giren, icerde (entry 09:02)
-  scan_events.push({ id: eventId++, employee_id: 5, guest_id: null, location_id: 1, qr_code_id: 1, event_type: "entry", scanned_at: `${today}T09:02:00.000Z`, ip_address: "192.168.1.104", user_agent: "Mobile" });
-
-  // Ali - giren otoparktan, icerde (entry 09:30 - GEC!)
-  scan_events.push({ id: eventId++, employee_id: 6, guest_id: null, location_id: 3, qr_code_id: 3, event_type: "entry", scanned_at: `${today}T09:30:00.000Z`, ip_address: "192.168.1.105", user_agent: "Mobile" });
-
-  // Fatma - giren ve icerde (entry 08:58)
-  scan_events.push({ id: eventId++, employee_id: 7, guest_id: null, location_id: 1, qr_code_id: 1, event_type: "entry", scanned_at: `${today}T08:58:00.000Z`, ip_address: "192.168.1.106", user_agent: "Mobile" });
-
-  // Mustafa - henuz gelmedi
+  const eventId = 0;
 
   const guests: Guest[] = [
     {
@@ -168,7 +144,7 @@ function createSeedData(): DB {
       lunch_end: "13:30",
       work_end: "18:00",
     },
-    _counters: { employee: 8, guest: 1, location: 3, qr: 3, event: eventId - 1 },
+    _counters: { employee: 8, guest: 1, location: 3, qr: 3, event: eventId },
   };
 }
 

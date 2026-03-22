@@ -487,7 +487,13 @@ function handlePostScan(token: string, body: any) {
     return err("Calisan kodu veya misafir kodu gerekli", 400);
   }
 
-  // Determine entry or exit
+  // ─── Akilli Giris/Cikis Mantigi ───────────────────────
+  // Kurallar:
+  //   1. Hic kayit yoksa veya son kayit "exit" ise → GIRIS
+  //   2. Ayni lokasyonda son kayit "entry" ise → CIKIS
+  //   3. Farkli lokasyonda son kayit "entry" ise → eski lokasyondan otomatik CIKIS + yeni lokasyona GIRIS
+  //   4. Ayni lokasyonda art arda ayni islem → sadece LOG (tekrar giris = log)
+
   const today = now.toISOString().slice(0, 10);
   const todayEvents = db.scan_events.filter(
     (e) =>
@@ -495,26 +501,63 @@ function handlePostScan(token: string, body: any) {
       ((employeeId && e.employee_id === employeeId) || (guestId && e.guest_id === guestId))
   );
 
-  const lastEvent = todayEvents.sort(
+  const sortedEvents = todayEvents.sort(
     (a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime()
-  )[0];
+  );
+  const lastEvent = sortedEvents[0];
 
-  const eventType: "entry" | "exit" =
-    !lastEvent || lastEvent.event_type === "exit" ? "entry" : "exit";
-
-  // Debounce check (2 min)
-  if (lastEvent) {
+  // Debounce: ayni lokasyonda 30 saniye icinde tekrar tarama engelle
+  if (lastEvent && lastEvent.location_id === qr.location_id) {
     const diff = now.getTime() - new Date(lastEvent.scanned_at).getTime();
-    if (diff < 2 * 60 * 1000) {
-      return err("Cok kisa surede tekrar tarama yapilamaz (2 dk bekleyin)", 429);
+    if (diff < 30 * 1000) {
+      return err("Ayni lokasyonda cok kisa surede tekrar tarama yapilamaz (30 sn bekleyin)", 429);
     }
   }
 
+  const currentLocationId = qr.location_id;
+  let eventType: "entry" | "exit";
+  let autoExitEvent: ScanEvent | null = null;
+  let message = "";
+
+  if (!lastEvent || lastEvent.event_type === "exit") {
+    // Kural 1: Hic kayit yok veya son islem cikis → GIRIS
+    eventType = "entry";
+    message = "Giris basarili";
+  } else if (lastEvent.event_type === "entry" && lastEvent.location_id === currentLocationId) {
+    // Kural 2: Ayni lokasyonda zaten giris yapilmis → CIKIS
+    eventType = "exit";
+    message = "Cikis basarili";
+  } else if (lastEvent.event_type === "entry" && lastEvent.location_id !== currentLocationId) {
+    // Kural 3: Farkli lokasyonda giris vardi → otomatik CIKIS + yeni GIRIS
+    const oldLoc = db.locations.find((l) => l.id === lastEvent.location_id);
+
+    // Eski lokasyondan otomatik cikis kaydi
+    autoExitEvent = {
+      id: nextId(db, "event"),
+      employee_id: employeeId,
+      guest_id: guestId,
+      location_id: lastEvent.location_id,
+      qr_code_id: lastEvent.qr_code_id,
+      event_type: "exit",
+      scanned_at: new Date(now.getTime() - 1000).toISOString(), // 1 sn once
+      ip_address: "auto",
+      user_agent: "Auto-exit",
+    };
+    db.scan_events.push(autoExitEvent);
+
+    eventType = "entry";
+    message = `${oldLoc?.name || "Onceki lokasyon"} cikis + yeni giris`;
+  } else {
+    eventType = "entry";
+    message = "Giris basarili";
+  }
+
+  // Ana olay kaydini olustur
   const event: ScanEvent = {
     id: nextId(db, "event"),
     employee_id: employeeId,
     guest_id: guestId,
-    location_id: qr.location_id,
+    location_id: currentLocationId,
     qr_code_id: qr.id,
     event_type: eventType,
     scanned_at: now.toISOString(),
@@ -532,7 +575,10 @@ function handlePostScan(token: string, body: any) {
     person_name: personName,
     location_name: loc?.name || "",
     scanned_at: timeStr,
-    message: eventType === "entry" ? "Giris basarili" : "Cikis basarili",
+    message,
+    auto_exit_from: autoExitEvent
+      ? db.locations.find((l) => l.id === autoExitEvent!.location_id)?.name || ""
+      : null,
   });
 }
 

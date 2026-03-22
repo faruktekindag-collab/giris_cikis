@@ -284,20 +284,31 @@ export default function MyHistoryPage() {
         <div className="px-4 py-6">
           {/* Scan Result */}
           {scanResult && (
-            <div
-              className={`mb-6 rounded-2xl p-6 text-center text-white ${
-                scanResult.event_type === "entry" ? "bg-green-500" : "bg-blue-500"
-              }`}
-            >
-              <div className="text-6xl mb-3">
-                {scanResult.event_type === "entry" ? "✓" : "←"}
+            <div className="mb-6">
+              {/* Auto-exit bilgisi */}
+              {scanResult.auto_exit_from && (
+                <div className="bg-orange-100 border border-orange-300 rounded-xl p-3 mb-3 text-center">
+                  <p className="text-orange-700 text-sm font-semibold">
+                    ← <strong>{scanResult.auto_exit_from}</strong> otomatik cikis yapildi
+                  </p>
+                </div>
+              )}
+              <div
+                className={`rounded-2xl p-6 text-center text-white ${
+                  scanResult.event_type === "entry" ? "bg-green-500" : "bg-blue-500"
+                }`}
+              >
+                <div className="text-6xl mb-3">
+                  {scanResult.event_type === "entry" ? "✓" : "←"}
+                </div>
+                <h2 className="text-3xl font-bold mb-1">
+                  {scanResult.event_type === "entry" ? "GİRİŞ" : "ÇIKIŞ"}
+                </h2>
+                <p className="text-xl">{scanResult.person_name}</p>
+                <p className="text-lg opacity-90">{scanResult.location_name}</p>
+                <p className="text-3xl font-bold mt-2">{scanResult.scanned_at}</p>
+                <p className="text-sm opacity-80 mt-2">{scanResult.message}</p>
               </div>
-              <h2 className="text-3xl font-bold mb-1">
-                {scanResult.event_type === "entry" ? "GİRİŞ" : "ÇIKIŞ"}
-              </h2>
-              <p className="text-xl">{scanResult.person_name}</p>
-              <p className="text-lg opacity-90">{scanResult.location_name}</p>
-              <p className="text-3xl font-bold mt-2">{scanResult.scanned_at}</p>
             </div>
           )}
 

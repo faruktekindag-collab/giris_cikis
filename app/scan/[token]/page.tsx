@@ -103,12 +103,20 @@ export default function ScanPage() {
   if (state === "success" && result) {
     const isEntry = result.event_type === "entry";
     return (
-      <div className={`min-h-screen flex items-center justify-center ${isEntry ? "bg-green-500" : "bg-blue-500"}`}>
+      <div className={`min-h-screen flex flex-col items-center justify-center ${isEntry ? "bg-green-500" : "bg-blue-500"}`}>
+        {(result as any).auto_exit_from && (
+          <div className="bg-white/20 rounded-xl px-6 py-3 mb-4">
+            <p className="text-white text-lg font-medium">
+              ← {(result as any).auto_exit_from} otomatik cikis
+            </p>
+          </div>
+        )}
         <div className="text-center text-white px-6 animate-fade-in">
           <div className="text-8xl mb-6">{isEntry ? "✓" : "←"}</div>
           <h1 className="text-4xl font-bold mb-2">{isEntry ? "GİRİŞ" : "ÇIKIŞ"}</h1>
           <p className="text-2xl font-medium mb-1">{result.person_name}</p>
-          <p className="text-xl opacity-90 mb-4">{result.location_name}</p>
+          <p className="text-xl opacity-90 mb-2">{result.location_name}</p>
+          <p className="text-lg opacity-80 mb-4">{result.message}</p>
           <p className="text-5xl font-bold">{result.scanned_at}</p>
           <p className="text-sm opacity-75 mt-6">5 saniye sonra kapanacak...</p>
         </div>
