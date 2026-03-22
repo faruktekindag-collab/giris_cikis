@@ -95,9 +95,10 @@ function createSeedData(): DB {
     { id: 8, employee_code: "EMP007", full_name: "Mustafa Arslan", email: "mustafa@fct.com", department: "Bilgi Teknolojileri", pin: "1234", is_active: true, is_admin: false, created_at: now },
   ];
 
-  const qrToken1 = crypto.randomBytes(32).toString("base64url");
-  const qrToken2 = crypto.randomBytes(32).toString("base64url");
-  const qrToken3 = crypto.randomBytes(32).toString("base64url");
+  // Sabit token'lar - Vercel serverless'da her invocation'da ayni kalsin
+  const qrToken1 = "fct-ana-giris-qr-token-2026-stable-key-do-not-change";
+  const qrToken2 = "fct-arka-kapi-qr-token-2026-stable-key-do-not-change";
+  const qrToken3 = "fct-otopark-qr-token-2026-stable-key-do-not-change";
 
   const locations: Location[] = [
     { id: 1, location_code: "ANA-GIRIS", name: "Ana Giris Kapisi", description: "Bina ana giris kapisi", is_active: true, created_at: now },
@@ -142,11 +143,11 @@ function createSeedData(): DB {
   const guests: Guest[] = [
     {
       id: 1,
-      guest_code: "GST" + crypto.randomBytes(3).toString("hex").toUpperCase(),
+      guest_code: "GST001ABC",
       full_name: "Burak Erdem",
       company: "ABC Teknoloji",
       host_employee_id: 1,
-      access_code: crypto.randomBytes(4).toString("hex").toUpperCase(),
+      access_code: "MISAFIR01",
       valid_from: `${today}T08:00:00.000Z`,
       valid_until: `${today}T18:00:00.000Z`,
       is_active: true,
@@ -184,23 +185,35 @@ export function getDB(): DB {
       return _cache;
     }
   } catch {
-    // corrupted file, reset
+    // corrupted file or read-only filesystem (Vercel)
   }
 
   // Create fresh DB with seed data
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
   _cache = createSeedData();
-  fs.writeFileSync(DB_PATH, JSON.stringify(_cache, null, 2));
+
+  // Try to persist (will fail on Vercel read-only filesystem - that's OK)
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_PATH, JSON.stringify(_cache, null, 2));
+  } catch {
+    // Read-only filesystem (Vercel serverless) - use in-memory only
+  }
+
   return _cache;
 }
 
 export function saveDB(db: DB) {
   _cache = db;
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+
+  // Try to persist (will fail on Vercel read-only filesystem - that's OK)
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  } catch {
+    // Read-only filesystem - data lives in memory only for this invocation
+  }
 }
 
 export function nextId(db: DB, table: keyof DB["_counters"]): number {
