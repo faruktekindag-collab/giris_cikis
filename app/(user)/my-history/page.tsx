@@ -56,9 +56,8 @@ export default function MyHistoryPage() {
   const [scanResult, setScanResult] = useState<any>(null);
   const [scanError, setScanError] = useState("");
   const [scanLoading, setScanLoading] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const scannerRef = useRef<any>(null);
+  const scanningRef = useRef(false);
 
   // Email modal
   const [emailModal, setEmailModal] = useState(false);
@@ -95,60 +94,79 @@ export default function MyHistoryPage() {
 
   // ─── QR Scanner ────────────────────────────────────────
   const startCamera = async () => {
+    setScanResult(null);
+    setScanError("");
+
     try {
-      setScanResult(null);
-      setScanError("");
-      setScanning(true);
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-
       // Dynamic import to avoid SSR issues
       const { Html5Qrcode } = await import("html5-qrcode");
 
-      // Use the library's scanner
-      const scanner = new Html5Qrcode("qr-reader-element");
-      scannerRef.current = scanner;
+      // Make sure previous scanner is fully stopped
+      if (scannerRef.current) {
+        try {
+          await scannerRef.current.stop();
+        } catch {}
+        scannerRef.current = null;
+      }
 
-      // Stop the manual stream since Html5Qrcode manages its own
-      stopCamera();
+      // Show scanning UI first so the div is rendered
+      setScanning(true);
+      scanningRef.current = true;
+
+      // Wait a tick for React to render the div
+      await new Promise((r) => setTimeout(r, 100));
+
+      const scanner = new Html5Qrcode("qr-reader-element", {
+        verbose: false,
+      });
+      scannerRef.current = scanner;
 
       await scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (decodedText: string) => {
-          // QR code scanned!
-          await scanner.stop();
-          scannerRef.current = null;
-          setScanning(false);
-          handleQRScanned(decodedText);
+        {
+          fps: 15,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
+        },
+        (decodedText: string) => {
+          // Prevent double-scan
+          if (!scanningRef.current) return;
+          scanningRef.current = false;
+
+          // Stop scanner first
+          scanner.stop().then(() => {
+            scannerRef.current = null;
+            setScanning(false);
+            handleQRScanned(decodedText);
+          }).catch(() => {
+            setScanning(false);
+            handleQRScanned(decodedText);
+          });
         },
         () => {
-          // ignore scan failures
+          // Scanning... (no match yet - this is normal)
         }
       );
     } catch (err: any) {
-      setScanError("Kamera erişimi reddedildi. Lütfen kamera iznini verin.");
+      console.error("Camera error:", err);
+      const msg = err?.message || String(err);
+      if (msg.includes("NotAllowed") || msg.includes("Permission")) {
+        setScanError("Kamera izni reddedildi. Tarayici ayarlarindan kamera iznini verin.");
+      } else if (msg.includes("NotFound") || msg.includes("Requested device not found")) {
+        setScanError("Kamera bulunamadi. Cihazinizda kamera var mi?");
+      } else {
+        setScanError("Kamera acilamadi: " + msg);
+      }
       setScanning(false);
-      stopCamera();
+      scanningRef.current = false;
     }
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
+  const stopCamera = async () => {
+    scanningRef.current = false;
     if (scannerRef.current) {
       try {
-        scannerRef.current.stop();
+        await scannerRef.current.stop();
       } catch {}
       scannerRef.current = null;
     }
@@ -298,13 +316,7 @@ export default function MyHistoryPage() {
             </div>
           )}
 
-          {/* QR Reader Element (html5-qrcode mounts here) */}
-          <div id="qr-reader-element" className={scanning ? "mb-4 rounded-2xl overflow-hidden" : "hidden"} />
-
-          {/* Hidden video element */}
-          <video ref={videoRef} className="hidden" playsInline muted />
-
-          {/* Scan Button */}
+          {/* Scan Button & Camera */}
           {!scanning ? (
             <button
               onClick={startCamera}
@@ -313,16 +325,24 @@ export default function MyHistoryPage() {
               <span className="text-4xl block mb-2">📷</span>
               QR Kod Tara
               <span className="block text-sm font-normal opacity-80 mt-1">
-                Giriş veya Çıkış kaydet
+                Giris veya Cikis kaydet
               </span>
             </button>
           ) : (
-            <button
-              onClick={stopCamera}
-              className="w-full bg-red-500 text-white py-4 rounded-2xl text-lg font-bold"
-            >
-              Taramayı İptal Et
-            </button>
+            <div>
+              {/* QR Reader - html5-qrcode mounts camera here */}
+              <div
+                id="qr-reader-element"
+                className="mb-4 rounded-2xl overflow-hidden border-4 border-primary-500"
+                style={{ minHeight: "300px" }}
+              />
+              <button
+                onClick={stopCamera}
+                className="w-full bg-red-500 text-white py-4 rounded-2xl text-lg font-bold active:scale-95 transition-transform"
+              >
+                Taramayi Iptal Et
+              </button>
+            </div>
           )}
 
           {/* Quick info */}
