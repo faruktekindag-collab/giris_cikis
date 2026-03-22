@@ -77,7 +77,11 @@ interface DB {
 }
 
 // ─── File path ───────────────────────────────────────────
-const DB_PATH = path.join(process.cwd(), "data", "db.json");
+// Vercel: /tmp yazilabilir, process.cwd() read-only
+const IS_VERCEL = process.env.VERCEL === "1";
+const DB_PATH = IS_VERCEL
+  ? path.join("/tmp", "fct-db-v2.json")
+  : path.join(process.cwd(), "data", "db.json");
 
 // ─── Seed Data ───────────────────────────────────────────
 function createSeedData(): DB {
